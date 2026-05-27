@@ -70,8 +70,6 @@ const RoomSchema = new Schema<IRoomDocument>(
   { timestamps: false }
 );
 
-// Index for fast room code lookups
-RoomSchema.index({ roomCode: 1 });
 
 const Room: Model<IRoomDocument> =
   mongoose.models.Room || mongoose.model<IRoomDocument>('Room', RoomSchema);

@@ -16,6 +16,7 @@ import {
   AddQueuePayload,
   RemoveQueuePayload,
   SendMessagePayload,
+  GrantAdminPayload,
 } from '../lib/types';
 
 // Generate a random 6-character room code
@@ -31,6 +32,9 @@ function generateRoomCode(): string {
 // Track socket -> room/user mapping for disconnect cleanup
 const socketRoomMap = new Map<string, { roomId: string; userId: string }>();
 
+// Track disconnect timeouts for reconnection grace period
+const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
+
 export function registerSocketHandlers(io: SocketIOServer) {
   io.on('connection', (socket: Socket) => {
     console.log(`🔌 User connected: ${socket.id}`);
@@ -42,11 +46,18 @@ export function registerSocketHandlers(io: SocketIOServer) {
       try {
         await connectDB();
 
-        // Create guest user
-        const user = await User.create({
-          name: payload.userName,
-          avatar: payload.userAvatar,
-        });
+        let user = null;
+        if (payload.userId) {
+          user = await User.findById(payload.userId);
+        }
+
+        // Create guest user if not found
+        if (!user) {
+          user = await User.create({
+            name: payload.userName,
+            avatar: payload.userAvatar,
+          });
+        }
 
         // Generate unique room code
         let roomCode = generateRoomCode();
@@ -126,9 +137,12 @@ export function registerSocketHandlers(io: SocketIOServer) {
         // Check if user is already in the room
         const existingRoomUserIndex = room.users.findIndex((u) => u.userId.toString() === user!._id.toString());
         
+        let isReconnecting = false;
+        
         if (existingRoomUserIndex >= 0) {
           // Update existing user's socketId
           room.users[existingRoomUserIndex].socketId = socket.id;
+          isReconnecting = true;
         } else {
           // Add new user to room
           room.users.push({
@@ -140,6 +154,13 @@ export function registerSocketHandlers(io: SocketIOServer) {
         }
 
         await room.save();
+
+        // If they had a pending disconnect timeout, clear it!
+        if (disconnectTimeouts.has(user._id.toString())) {
+          clearTimeout(disconnectTimeouts.get(user._id.toString()));
+          disconnectTimeouts.delete(user._id.toString());
+          console.log(`♻️ User ${user.name} reconnected within grace period`);
+        }
 
         // Join socket room
         socket.join(room.roomCode);
@@ -164,33 +185,35 @@ export function registerSocketHandlers(io: SocketIOServer) {
           });
         }
 
-        // Notify others in the room
-        socket.to(room.roomCode).emit(SOCKET_EVENTS.USER_JOINED, {
-          user: {
-            userId: user._id.toString(),
-            name: user.name,
-            avatar: user.avatar,
-          },
-          users: room.users.map((u) => ({
-            userId: u.userId.toString(),
-            name: u.name,
-            avatar: u.avatar,
-          })),
-        });
+        // Notify others in the room (only if not just reconnecting)
+        if (!isReconnecting) {
+          socket.to(room.roomCode).emit(SOCKET_EVENTS.USER_JOINED, {
+            user: {
+              userId: user._id.toString(),
+              name: user.name,
+              avatar: user.avatar,
+            },
+            users: room.users.map((u) => ({
+              userId: u.userId.toString(),
+              name: u.name,
+              avatar: u.avatar,
+            })),
+          });
 
-        // System message
-        const sysMsg = await Message.create({
-          roomId: room._id,
-          userId: user._id,
-          userName: user.name,
-          userAvatar: user.avatar,
-          message: `${user.name} joined the room`,
-          type: 'system',
-        });
+          // System message
+          const sysMsg = await Message.create({
+            roomId: room._id,
+            userId: user._id,
+            userName: user.name,
+            userAvatar: user.avatar,
+            message: `${user.name} joined the room`,
+            type: 'system',
+          });
 
-        io.to(room.roomCode).emit(SOCKET_EVENTS.MESSAGE_RECEIVED, {
-          message: sysMsg.toObject(),
-        });
+          io.to(room.roomCode).emit(SOCKET_EVENTS.MESSAGE_RECEIVED, {
+            message: sysMsg.toObject(),
+          });
+        }
 
         console.log(`👤 ${payload.userName} joined room ${room.roomCode}`);
       } catch (error) {
@@ -373,14 +396,53 @@ export function registerSocketHandlers(io: SocketIOServer) {
     });
 
     // ========================================
+    // GRANT_ADMIN
+    // ========================================
+    socket.on(SOCKET_EVENTS.GRANT_ADMIN, async (payload: GrantAdminPayload) => {
+      try {
+        await connectDB();
+        const room = await Room.findById(payload.roomId);
+        if (!room) return;
+
+        const mapping = socketRoomMap.get(socket.id);
+        if (mapping && mapping.userId === room.hostId.toString()) {
+          if (!room.coHostIds) {
+            room.coHostIds = [];
+          }
+          if (!room.coHostIds.includes(payload.targetUserId as any)) {
+            room.coHostIds.push(payload.targetUserId as any);
+            await room.save();
+
+            io.to(room.roomCode).emit(SOCKET_EVENTS.ADMIN_GRANTED, {
+              targetUserId: payload.targetUserId,
+              coHostIds: room.coHostIds.map((id) => id.toString()),
+            });
+            
+            console.log(`👑 Admin granted to ${payload.targetUserId} in room ${room.roomCode}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error granting admin:', error);
+      }
+    });
+
+    // ========================================
     // DISCONNECT
     // ========================================
     socket.on('disconnect', async () => {
       console.log(`🔌 User disconnected: ${socket.id}`);
       const mapping = socketRoomMap.get(socket.id);
       if (mapping) {
-        await handleUserLeave(io, socket, mapping.roomId, mapping.userId);
         socketRoomMap.delete(socket.id);
+        
+        // Start a 10s grace period timer
+        const timeout = setTimeout(async () => {
+          await handleUserLeave(io, socket, mapping.roomId, mapping.userId);
+          disconnectTimeouts.delete(mapping.userId);
+        }, 10000);
+        
+        disconnectTimeouts.set(mapping.userId, timeout);
+        console.log(`⏳ Started 10s disconnect grace period for ${mapping.userId}`);
       }
     });
   });

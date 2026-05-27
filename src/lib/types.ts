@@ -22,6 +22,7 @@ export interface IRoom {
   _id: string;
   roomCode: string;
   hostId: string;
+  coHostIds?: string[];
   currentVideoId: string | null;
   currentVideoTitle: string | null;
   isPlaying: boolean;
@@ -64,6 +65,7 @@ export interface IMessage {
 export interface CreateRoomPayload {
   userName: string;
   userAvatar: string;
+  userId?: string;
 }
 
 export interface JoinRoomPayload {
@@ -121,6 +123,11 @@ export interface SendMessagePayload {
   message: string;
 }
 
+export interface GrantAdminPayload {
+  roomId: string;
+  targetUserId: string;
+}
+
 // Server -> Client
 export interface RoomJoinedPayload {
   room: IRoom;
@@ -165,6 +172,11 @@ export interface MessageReceivedPayload {
   message: IMessage;
 }
 
+export interface AdminGrantedPayload {
+  targetUserId: string;
+  coHostIds: string[];
+}
+
 // ============================================
 // Socket Event Names
 // ============================================
@@ -192,4 +204,8 @@ export const SOCKET_EVENTS = {
   SEEK_SYNC: 'SEEK_SYNC',
   QUEUE_UPDATED: 'QUEUE_UPDATED',
   MESSAGE_RECEIVED: 'MESSAGE_RECEIVED',
+  
+  // New Events for Co-Hosts
+  GRANT_ADMIN: 'GRANT_ADMIN',
+  ADMIN_GRANTED: 'ADMIN_GRANTED',
 } as const;

@@ -3,6 +3,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface IUserDocument extends Document {
   name: string;
   avatar: string;
+  email?: string;
+  password?: string;
   createdAt: Date;
 }
 
@@ -17,6 +19,16 @@ const UserSchema = new Schema<IUserDocument>(
     avatar: {
       type: String,
       required: true,
+    },
+    email: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows multiple guest users (without email) without unique constraint error
+      trim: true,
+      lowercase: true,
+    },
+    password: {
+      type: String,
     },
     createdAt: {
       type: Date,

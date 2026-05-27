@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import LoginModal from '@/components/LoginModal';
 import { useSocket } from '@/hooks/useSocket';
 import { SOCKET_EVENTS } from '@/lib/types';
 
@@ -16,83 +17,104 @@ export default function HomePage() {
   const { emit } = useSocket();
 
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'guest'>('login');
+  
   const [userName, setUserName] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [action, setAction] = useState<'create' | 'join'>('create');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [myRooms, setMyRooms] = useState<any[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
 
-  // Load saved name and last room from localStorage
+  // Load saved data and auth token
   useEffect(() => {
     const savedName = localStorage.getItem('synctunes_name');
     if (savedName) setUserName(savedName);
     
     const savedRoom = localStorage.getItem('synctunes_lastRoom');
     if (savedRoom) setJoinCode(savedRoom);
+
+    const token = localStorage.getItem('synctunes_token');
+    if (token) {
+      setIsLoggedIn(true);
+      setIsLoadingRooms(true);
+      fetch('/api/user/rooms', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setMyRooms(data.rooms);
+        } else {
+          localStorage.removeItem('synctunes_token');
+          setIsLoggedIn(false);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingRooms(false));
+    }
   }, []);
 
-  const handleAction = (type: 'create' | 'join') => {
-    setAction(type);
-    setError(null);
-    setShowLoginModal(true);
+  const handleCreateRoom = (name: string, userId?: string) => {
+    const avatar = generateAvatar(name);
+    emit(
+      SOCKET_EVENTS.CREATE_ROOM,
+      { userName: name, userAvatar: avatar, userId },
+      (response: unknown) => {
+        const res = response as { success: boolean; data?: { room: { roomCode: string }; userId: string }; error?: string };
+        if (res.success && res.data) {
+          localStorage.setItem('synctunes_userId', res.data.userId);
+          localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
+          router.push(`/room/${res.data.room.roomCode}`);
+        } else {
+          alert(res.error || 'Failed to create room');
+        }
+      }
+    );
   };
 
-  const handleSubmit = async () => {
-    if (!userName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-
-    if (action === 'join' && !joinCode.trim()) {
-      setError('Please enter a room code');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    // Save name
-    localStorage.setItem('synctunes_name', userName.trim());
-    const avatar = generateAvatar(userName.trim());
-
-    try {
-      if (action === 'create') {
-        emit(
-          SOCKET_EVENTS.CREATE_ROOM,
-          { userName: userName.trim(), userAvatar: avatar },
-          (response: unknown) => {
-            const res = response as { success: boolean; data?: { room: { roomCode: string }; userId: string }; error?: string };
-            if (res.success && res.data) {
-              localStorage.setItem('synctunes_userId', res.data.userId);
-              localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
-              router.push(`/room/${res.data.room.roomCode}`);
-            } else {
-              setError(res.error || 'Failed to create room');
-              setIsLoading(false);
-            }
-          }
-        );
-      } else {
-        emit(
-          SOCKET_EVENTS.JOIN_ROOM,
-          { roomCode: joinCode.trim().toUpperCase(), userName: userName.trim(), userAvatar: avatar },
-          (response: unknown) => {
-            const res = response as { success: boolean; data?: { room: { roomCode: string }; userId: string }; error?: string };
-            if (res.success && res.data) {
-              localStorage.setItem('synctunes_userId', res.data.userId);
-              localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
-              router.push(`/room/${res.data.room.roomCode}`);
-            } else {
-              setError(res.error || 'Room not found');
-              setIsLoading(false);
-            }
-          }
-        );
+  const handleJoinRoom = (code: string, name: string, userId?: string) => {
+    const avatar = generateAvatar(name);
+    emit(
+      SOCKET_EVENTS.JOIN_ROOM,
+      { roomCode: code, userName: name, userAvatar: avatar, userId },
+      (response: unknown) => {
+        const res = response as { success: boolean; data?: { room: { roomCode: string }; userId: string }; error?: string };
+        if (res.success && res.data) {
+          localStorage.setItem('synctunes_userId', res.data.userId);
+          localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
+          router.push(`/room/${res.data.room.roomCode}`);
+        } else {
+          alert(res.error || 'Room not found');
+        }
       }
-    } catch {
-      setError('Connection error. Please try again.');
-      setIsLoading(false);
+    );
+  };
+
+  const handleAuthSuccess = (user: any, token: string) => {
+    localStorage.setItem('synctunes_token', token);
+    localStorage.setItem('synctunes_userId', user.id);
+    localStorage.setItem('synctunes_name', user.name);
+    setUserName(user.name);
+    setIsLoggedIn(true);
+    setShowLoginModal(false);
+    window.location.reload(); // Refresh to fetch rooms
+  };
+
+  const handleGuestJoin = (name: string, code?: string) => {
+    localStorage.setItem('synctunes_name', name);
+    setUserName(name);
+    setShowLoginModal(false);
+    if (code) {
+      handleJoinRoom(code, name);
+    } else {
+      handleCreateRoom(name);
     }
+  };
+
+  const openAuth = (mode: 'login' | 'register' | 'guest') => {
+    setAuthMode(mode);
+    setShowLoginModal(true);
   };
 
   return (
@@ -132,34 +154,116 @@ export default function HomePage() {
 
             {/* Action buttons */}
             <div className="mt-10 flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <button
-                onClick={() => handleAction('create')}
-                className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-semibold text-lg shadow-2xl shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span className="relative z-10 flex items-center gap-3">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  Create Room
-                </span>
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-violet-600 to-pink-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
+              {!isLoggedIn ? (
+                <>
+                  <button
+                    onClick={() => openAuth('register')}
+                    className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-semibold text-lg shadow-2xl shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <span className="relative z-10">Create Account</span>
+                  </button>
+                  <button
+                    onClick={() => openAuth('guest')}
+                    className="px-8 py-4 rounded-2xl border border-white/20 bg-white/5 text-white font-semibold text-lg hover:bg-white/10 hover:border-white/30 transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
+                  >
+                    Continue as Guest
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-6">
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => handleCreateRoom(userName, localStorage.getItem('synctunes_userId') || undefined)}
+                      className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-semibold text-lg shadow-2xl shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      <span className="relative z-10 flex items-center gap-3">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Create Room
+                      </span>
+                    </button>
 
-              <button
-                onClick={() => handleAction('join')}
-                className="px-8 py-4 rounded-2xl border border-white/20 bg-white/5 text-white font-semibold text-lg hover:bg-white/10 hover:border-white/30 transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
-              >
-                <span className="flex items-center gap-3">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                  </svg>
-                  Join Room
-                </span>
-              </button>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={joinCode}
+                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                        placeholder="ROOM CODE"
+                        maxLength={6}
+                        className="px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 uppercase tracking-widest w-36 text-center font-mono"
+                      />
+                      <button
+                        onClick={() => {
+                          if (joinCode) handleJoinRoom(joinCode, userName, localStorage.getItem('synctunes_userId') || undefined);
+                        }}
+                        className="px-6 py-4 rounded-xl border border-white/20 bg-white/5 text-white font-semibold hover:bg-white/10 transition-all"
+                      >
+                        Join
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Feature cards */}
-            <div className="mt-24 grid grid-cols-1 sm:grid-cols-3 gap-6 w-full max-w-4xl animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            {/* Dashboard / Feature Cards */}
+            <div className="mt-24 w-full max-w-4xl animate-slide-up" style={{ animationDelay: '0.3s' }}>
+              {isLoggedIn ? (
+                <div className="glass p-8 rounded-3xl text-left">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-white">My Rooms & Playlists</h2>
+                    <button onClick={() => {
+                        localStorage.removeItem('synctunes_token');
+                        window.location.reload();
+                      }}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      Log out
+                    </button>
+                  </div>
+                  
+                  {isLoadingRooms ? (
+                    <p className="text-white/50 text-center py-8">Loading rooms...</p>
+                  ) : myRooms.length === 0 ? (
+                    <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/10">
+                      <p className="text-white/50 mb-2">You haven't created any rooms yet.</p>
+                      <p className="text-sm text-white/30">Rooms you create will be saved here along with their playlists.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {myRooms.map((r) => (
+                        <div key={r.id} className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group relative overflow-hidden">
+                          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-4">
+                              <div>
+                                <h3 className="text-xl font-bold text-white font-mono tracking-widest">{r.roomCode}</h3>
+                                <p className="text-xs text-white/40 mt-1">{new Date(r.createdAt).toLocaleDateString()}</p>
+                              </div>
+                              <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center text-violet-300">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-white/60">{r.queueCount} songs saved</span>
+                              <button 
+                                onClick={() => handleJoinRoom(r.roomCode, userName, localStorage.getItem('synctunes_userId') || undefined)}
+                                className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium transition-colors"
+                              >
+                                Rejoin
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               {[
                 {
                   icon: (
@@ -197,148 +301,23 @@ export default function HomePage() {
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center text-violet-400 mb-4 group-hover:from-violet-500/30 group-hover:to-pink-500/30 transition-colors">
                     {feature.icon}
                   </div>
-                  <h3 className="text-lg font-semibold text-white/90 mb-2">{feature.title}</h3>
                   <p className="text-sm text-white/50">{feature.desc}</p>
                 </div>
               ))}
+                </div>
+              )}
             </div>
           </section>
         </div>
       </main>
 
-      {/* Login / Join Modal */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => {
-              setShowLoginModal(false);
-              setError(null);
-            }}
-          />
-
-          {/* Modal */}
-          <div className="relative w-full max-w-md rounded-2xl glass-strong p-6 shadow-2xl shadow-violet-500/10 animate-slide-up">
-            {/* Close button */}
-            <button
-              onClick={() => {
-                setShowLoginModal(false);
-                setError(null);
-              }}
-              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-white/10 text-white/40 hover:text-white/70 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            {/* Title */}
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {action === 'create' ? '🎵 Create a Room' : '🚪 Join a Room'}
-            </h2>
-            <p className="text-sm text-white/50 mb-6">
-              {action === 'create'
-                ? 'Set your name and start a listening party!'
-                : 'Enter the room code to join your friends.'}
-            </p>
-
-            {/* Form */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-white/60 mb-2">Your Name</label>
-                <input
-                  type="text"
-                  value={userName}
-                  onChange={(e) => {
-                    setUserName(e.target.value);
-                    setError(null);
-                  }}
-                  placeholder="Enter your name..."
-                  maxLength={30}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all"
-                  autoFocus
-                />
-              </div>
-
-              {action === 'join' && (
-                <div>
-                  <label className="block text-sm font-medium text-white/60 mb-2">Room Code</label>
-                  <input
-                    type="text"
-                    value={joinCode}
-                    onChange={(e) => {
-                      setJoinCode(e.target.value.toUpperCase());
-                      setError(null);
-                    }}
-                    placeholder="e.g. ABC123"
-                    maxLength={6}
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all font-mono text-lg tracking-widest uppercase"
-                  />
-                </div>
-              )}
-
-              {error && (
-                <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                  <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-sm text-red-400">{error}</p>
-                </div>
-              )}
-
-              <button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-semibold text-lg hover:from-violet-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 flex items-center justify-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {action === 'create' ? 'Creating...' : 'Joining...'}
-                  </>
-                ) : (
-                  action === 'create' ? 'Create Room' : 'Join Room'
-                )}
-              </button>
-
-              {/* Switch action */}
-              <p className="text-center text-sm text-white/40">
-                {action === 'create' ? (
-                  <>
-                    Have a code?{' '}
-                    <button
-                      onClick={() => {
-                        setAction('join');
-                        setError(null);
-                      }}
-                      className="text-violet-400 hover:text-violet-300 transition-colors"
-                    >
-                      Join a room instead
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Want to host?{' '}
-                    <button
-                      onClick={() => {
-                        setAction('create');
-                        setError(null);
-                      }}
-                      className="text-violet-400 hover:text-violet-300 transition-colors"
-                    >
-                      Create a room instead
-                    </button>
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <LoginModal 
+        isOpen={showLoginModal} 
+        onClose={() => setShowLoginModal(false)}
+        initialMode={authMode}
+        onSuccess={handleAuthSuccess}
+        onGuestJoin={handleGuestJoin}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ export interface IRoomUser {
 export interface IRoomDocument extends Document {
   roomCode: string;
   hostId: mongoose.Types.ObjectId | string;
+  coHostIds?: (mongoose.Types.ObjectId | string)[];
   currentVideoId: string | null;
   currentVideoTitle: string | null;
   isPlaying: boolean;
@@ -42,6 +43,12 @@ const RoomSchema = new Schema<IRoomDocument>(
       ref: 'User',
       required: true,
     },
+    coHostIds: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     currentVideoId: {
       type: String,
       default: null,

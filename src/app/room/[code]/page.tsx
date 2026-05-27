@@ -46,6 +46,7 @@ export default function RoomPage() {
     addToQueue,
     removeFromQueue,
     sendMessage,
+    grantAdmin,
     clearSyncEvent,
   } = useRoom();
 
@@ -275,7 +276,9 @@ export default function RoomPage() {
                   <UserList
                     users={users}
                     hostId={room.hostId}
+                    coHostIds={room.coHostIds}
                     currentUserId={userId}
+                    onGrantAdmin={grantAdmin}
                   />
                 </div>
               )}
@@ -333,7 +336,9 @@ export default function RoomPage() {
                   <UserList
                     users={users}
                     hostId={room.hostId}
+                    coHostIds={room.coHostIds}
                     currentUserId={userId}
+                    onGrantAdmin={grantAdmin}
                   />
                 </div>
               )}

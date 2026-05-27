@@ -17,6 +17,7 @@ import {
   PlaySyncPayload,
   PauseSyncPayload,
   SeekSyncPayload,
+  AdminGrantedPayload,
 } from '@/lib/types';
 
 interface RoomState {
@@ -76,7 +77,7 @@ export function useRoom() {
           ...prev,
           users: payload.users,
           isHost: payload.newHostId
-            ? payload.newHostId === prev.userId
+            ? payload.newHostId === prev.userId || (prev.room?.coHostIds || []).includes(prev.userId || '')
             : prev.isHost,
           room: prev.room
             ? {
@@ -171,6 +172,26 @@ export function useRoom() {
       })
     );
 
+    cleanups.push(
+      on(SOCKET_EVENTS.ADMIN_GRANTED, (data: unknown) => {
+        const payload = data as AdminGrantedPayload;
+        setState((prev) => {
+          if (!prev.room) return prev;
+          
+          const updatedRoom = {
+            ...prev.room,
+            coHostIds: payload.coHostIds,
+          };
+          
+          return {
+            ...prev,
+            room: updatedRoom,
+            isHost: prev.userId === updatedRoom.hostId || payload.coHostIds.includes(prev.userId || ''),
+          };
+        });
+      })
+    );
+
     return () => {
       cleanups.forEach((cleanup) => cleanup());
     };
@@ -233,7 +254,7 @@ export function useRoom() {
                 users: res.data.room.users,
                 queue: res.data.queue,
                 messages: res.data.messages,
-                isHost: res.data.room.hostId === res.data.userId,
+                isHost: res.data.room.hostId === res.data.userId || (res.data.room.coHostIds || []).includes(res.data.userId || ''),
                 isLoading: false,
                 error: null,
               });
@@ -370,6 +391,18 @@ export function useRoom() {
     setSyncEvent(null);
   }, []);
 
+  const grantAdmin = useCallback(
+    (targetUserId: string) => {
+      if (state.room && state.isHost) {
+        emit(SOCKET_EVENTS.GRANT_ADMIN, {
+          roomId: state.room._id,
+          targetUserId,
+        });
+      }
+    },
+    [emit, state.room, state.isHost]
+  );
+
   return {
     ...state,
     syncEvent,
@@ -383,6 +416,7 @@ export function useRoom() {
     addToQueue,
     removeFromQueue,
     sendMessage,
+    grantAdmin,
     clearSyncEvent,
   };
 }

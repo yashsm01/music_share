@@ -22,10 +22,13 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load saved name from localStorage
+  // Load saved name and last room from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('synctunes_name');
-    if (saved) setUserName(saved);
+    const savedName = localStorage.getItem('synctunes_name');
+    if (savedName) setUserName(savedName);
+    
+    const savedRoom = localStorage.getItem('synctunes_lastRoom');
+    if (savedRoom) setJoinCode(savedRoom);
   }, []);
 
   const handleAction = (type: 'create' | 'join') => {
@@ -61,6 +64,7 @@ export default function HomePage() {
             const res = response as { success: boolean; data?: { room: { roomCode: string }; userId: string }; error?: string };
             if (res.success && res.data) {
               localStorage.setItem('synctunes_userId', res.data.userId);
+              localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
               router.push(`/room/${res.data.room.roomCode}`);
             } else {
               setError(res.error || 'Failed to create room');
@@ -76,6 +80,7 @@ export default function HomePage() {
             const res = response as { success: boolean; data?: { room: { roomCode: string }; userId: string }; error?: string };
             if (res.success && res.data) {
               localStorage.setItem('synctunes_userId', res.data.userId);
+              localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
               router.push(`/room/${res.data.room.roomCode}`);
             } else {
               setError(res.error || 'Room not found');

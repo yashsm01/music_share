@@ -98,7 +98,7 @@ export default function RoomPage() {
 
     // Join the room
     const avatar = generateAvatar(savedName);
-    joinRoom(roomCode, savedName, avatar)
+    joinRoom(roomCode, savedName, avatar, savedUserId || undefined)
       .then(() => setHasJoined(true))
       .catch(() => {
         // Room not found or error

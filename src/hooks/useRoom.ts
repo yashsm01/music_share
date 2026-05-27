@@ -217,13 +217,13 @@ export function useRoom() {
   );
 
   const joinRoom = useCallback(
-    (roomCode: string, userName: string, userAvatar: string): Promise<RoomJoinedPayload> => {
+    (roomCode: string, userName: string, userAvatar: string, userId?: string): Promise<RoomJoinedPayload> => {
       return new Promise((resolve, reject) => {
         setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
         emit(
           SOCKET_EVENTS.JOIN_ROOM,
-          { roomCode, userName, userAvatar },
+          { roomCode, userName, userAvatar, userId },
           (response: unknown) => {
             const res = response as { success: boolean; data?: RoomJoinedPayload; error?: string };
             if (res.success && res.data) {

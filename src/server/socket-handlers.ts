@@ -110,21 +110,35 @@ export function registerSocketHandlers(io: SocketIOServer) {
           return;
         }
 
-        // Create guest user
-        const user = await User.create({
-          name: payload.userName,
-          avatar: payload.userAvatar,
-        });
+        let user = null;
+        if (payload.userId) {
+          user = await User.findById(payload.userId);
+        }
 
-        // Add user to room
-        const roomUser = {
-          userId: user._id,
-          name: user.name,
-          avatar: user.avatar,
-          socketId: socket.id,
-        };
+        // Create guest user if not found
+        if (!user) {
+          user = await User.create({
+            name: payload.userName,
+            avatar: payload.userAvatar,
+          });
+        }
 
-        room.users.push(roomUser);
+        // Check if user is already in the room
+        const existingRoomUserIndex = room.users.findIndex((u) => u.userId.toString() === user!._id.toString());
+        
+        if (existingRoomUserIndex >= 0) {
+          // Update existing user's socketId
+          room.users[existingRoomUserIndex].socketId = socket.id;
+        } else {
+          // Add new user to room
+          room.users.push({
+            userId: user._id,
+            name: user.name,
+            avatar: user.avatar,
+            socketId: socket.id,
+          });
+        }
+
         await room.save();
 
         // Join socket room
@@ -391,12 +405,10 @@ async function handleUserLeave(
 
     let newHostId: string | undefined;
 
-    // If room is empty, delete it
+    // If room is empty, we keep it alive so the host can rejoin if they accidentally refreshed
     if (room.users.length === 0) {
-      await Room.findByIdAndDelete(roomId);
-      await Queue.deleteMany({ roomId });
-      await Message.deleteMany({ roomId });
-      console.log(`🗑️  Room ${room.roomCode} deleted (empty)`);
+      console.log(`⏳ Room ${room.roomCode} is now empty (kept alive for reconnect)`);
+      // We don't delete immediately to allow for reconnects
       return;
     }
 

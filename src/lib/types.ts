@@ -70,6 +70,7 @@ export interface JoinRoomPayload {
   roomCode: string;
   userName: string;
   userAvatar: string;
+  userId?: string;
 }
 
 export interface LeaveRoomPayload {

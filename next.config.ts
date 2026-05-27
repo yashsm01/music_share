@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ['mongoose', 'bcryptjs'],
 };
 
 export default nextConfig;

@@ -231,6 +231,7 @@ export default function RoomPage() {
           <div className="flex-1 p-3 sm:p-4 lg:p-5">
             <Player
               videoId={room.currentVideoId}
+              videoTitle={room.currentVideoTitle || null}
               isHost={isHost}
               audioRef={audioRef}
               bindAudio={bindAudio}

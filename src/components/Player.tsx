@@ -7,6 +7,7 @@ const YouTube = dynamic(() => import('react-youtube'), { ssr: false });
 
 interface PlayerProps {
   videoId: string | null;
+  videoTitle: string | null;
   isHost: boolean;
   audioRef: React.RefObject<HTMLAudioElement | null>;
   bindAudio: (audio: HTMLAudioElement | null) => void;
@@ -43,6 +44,7 @@ function formatTime(seconds: number): string {
 
 export default function Player({
   videoId,
+  videoTitle,
   isHost,
   audioRef,
   bindAudio,
@@ -56,8 +58,63 @@ export default function Player({
   const progressRef = useRef<HTMLDivElement>(null);
   const ytPlayerRef = useRef<any>(null);
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
-  const [volume, setVolumeState] = useState(0.8);
   const [showVolume, setShowVolume] = useState(false);
+  const [volume, setVolumeState] = useState(1);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Check if saved on mount/video change
+  useEffect(() => {
+    if (!videoId) return;
+    const checkSaved = async () => {
+      try {
+        const userId = localStorage.getItem('synctunes_userId');
+        if (!userId) return;
+        const res = await fetch('/api/user/saved-songs', {
+          headers: { 'x-user-id': userId },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setIsSaved(data.data.some((song: any) => song.videoId === videoId));
+        }
+      } catch (err) {}
+    };
+    checkSaved();
+  }, [videoId]);
+
+  const toggleSave = async () => {
+    if (!videoId || !videoTitle || isSaving) return;
+    setIsSaving(true);
+    try {
+      const userId = localStorage.getItem('synctunes_userId');
+      if (!userId) {
+        alert('You must be logged in to save songs!');
+        return;
+      }
+      
+      const res = await fetch('/api/user/saved-songs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId,
+        },
+        body: JSON.stringify({
+          videoId,
+          title: videoTitle,
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          action: isSaved ? 'remove' : 'add',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsSaved(!isSaved);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Fetch video info when videoId changes
   useEffect(() => {
@@ -264,6 +321,19 @@ export default function Player({
               Lock screen ready
             </span>
           )}
+
+          <button
+            onClick={toggleSave}
+            disabled={isSaving}
+            className={`p-1.5 rounded-full transition-all ${
+              isSaved ? 'text-rose-500' : 'text-white/30 hover:text-white/60 hover:bg-white/5'
+            }`}
+            title="Save to My Music List"
+          >
+            <svg className="w-5 h-5" fill={isSaved ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={isSaved ? 0 : 2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
         </div>
       )}
 

@@ -6,6 +6,12 @@ export interface IUserDocument extends Document {
   email?: string;
   password?: string;
   createdAt: Date;
+  savedSongs: Array<{
+    videoId: string;
+    title: string;
+    thumbnail?: string;
+    addedAt: Date;
+  }>;
 }
 
 const UserSchema = new Schema<IUserDocument>(
@@ -29,13 +35,22 @@ const UserSchema = new Schema<IUserDocument>(
     },
     password: {
       type: String,
+      minlength: 6,
     },
+    savedSongs: [
+      {
+        videoId: { type: String, required: true },
+        title: { type: String, required: true },
+        thumbnail: { type: String },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
     createdAt: {
       type: Date,
       default: Date.now,
     },
   },
-  { timestamps: false }
+  { timestamps: true }
 );
 
 const User: Model<IUserDocument> =

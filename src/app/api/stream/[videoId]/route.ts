@@ -44,8 +44,7 @@ export async function GET(
 
     const ytdlp = getYtDlpPath();
 
-    // Download audio-only to temp file
-    await execFileAsync(ytdlp, [
+    const childProcess = execFile(ytdlp, [
       url,
       '--extract-audio',
       '--audio-format', 'opus',
@@ -58,6 +57,20 @@ export async function GET(
       '--quiet',
     ], {
       timeout: 120000, // 2 min timeout
+    });
+
+    // Handle abort signal
+    request.signal.addEventListener('abort', () => {
+      childProcess.kill();
+      try { unlinkSync(outputFile); } catch { /* ignore */ }
+    });
+
+    await new Promise((resolve, reject) => {
+      childProcess.on('exit', (code) => {
+        if (code === 0) resolve(true);
+        else reject(new Error(`yt-dlp exited with code ${code}`));
+      });
+      childProcess.on('error', reject);
     });
 
     // Find the output file (yt-dlp adds extension)
@@ -114,6 +127,7 @@ export async function GET(
       },
       cancel() {
         nodeStream.destroy();
+        childProcess.kill();
         try { unlinkSync(outputFile); } catch { /* ignore */ }
       },
     });

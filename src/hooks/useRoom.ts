@@ -234,6 +234,7 @@ export function useRoom() {
                 isLoading: false,
                 error: null,
               }));
+              localStorage.setItem('synctunes_userId', res.data!.userId);
               resolve(res.data);
             } else {
               setState((prev) => ({
@@ -261,17 +262,20 @@ export function useRoom() {
           (response: unknown) => {
             const res = response as { success: boolean; data?: RoomJoinedPayload; error?: string };
             if (res.success && res.data) {
-              setState({
-                room: res.data.room,
-                userId: res.data.userId,
-                users: res.data.room.users,
-                queue: res.data.queue,
-                messages: res.data.messages,
-                isHost: res.data.room.hostId === res.data.userId || (res.data.room.coHostIds || []).includes(res.data.userId || ''),
+              setState((prev) => ({
+                ...prev,
+                room: res.data!.room,
+                userId: res.data!.userId,
+                users: res.data!.room.users,
+                queue: res.data!.queue,
+                messages: res.data!.messages,
+                isHost: res.data!.room.hostId === res.data!.userId || (res.data!.room.coHostIds || []).includes(res.data!.userId || ''),
                 isLoading: false,
                 error: null,
                 playbackMode: 'audio',
-              });
+              }));
+
+              localStorage.setItem('synctunes_userId', res.data!.userId);
 
               // Save to room history
               try {

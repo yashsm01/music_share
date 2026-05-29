@@ -25,6 +25,8 @@ export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [myRooms, setMyRooms] = useState<any[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [savedSongs, setSavedSongs] = useState<any[]>([]);
+  const [isLoadingSongs, setIsLoadingSongs] = useState(false);
   const [roomHistory, setRoomHistory] = useState<{ code: string; joinedAt: string }[]>([]);
 
   // Load saved data and auth token
@@ -38,21 +40,25 @@ export default function HomePage() {
     const token = localStorage.getItem('synctunes_token');
     if (token) {
       setIsLoggedIn(true);
-      setIsLoadingRooms(true);
-      fetch('/api/user/rooms', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          setMyRooms(data.rooms);
-        } else {
-          localStorage.removeItem('synctunes_token');
-          setIsLoggedIn(false);
+      (async () => {
+        try {
+          setIsLoadingRooms(true);
+          setIsLoadingSongs(true);
+          const [roomsRes, songsRes] = await Promise.all([
+            fetch('/api/user/rooms', { headers: { Authorization: `Bearer ${token}` } }),
+            fetch('/api/user/saved-songs', { headers: { 'x-user-id': localStorage.getItem('synctunes_userId') || '' } })
+          ]);
+          const roomsData = await roomsRes.json();
+          const songsData = await songsRes.json();
+          if (roomsData.success) setMyRooms(roomsData.data);
+          if (songsData.success) setSavedSongs(songsData.data);
+        } catch (error) {
+          console.error('Failed to fetch user data', error);
+        } finally {
+          setIsLoadingRooms(false);
+          setIsLoadingSongs(false);
         }
-      })
-      .catch(() => {})
-      .finally(() => setIsLoadingRooms(false));
+      })();
     }
 
     // Load room history from localStorage
@@ -290,6 +296,55 @@ export default function HomePage() {
                               </button>
                             </div>
                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-12 mb-6">
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                      <svg className="w-6 h-6 text-rose-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                      </svg>
+                      My Music List
+                    </h2>
+                  </div>
+
+                  {isLoadingSongs ? (
+                    <p className="text-white/50 text-center py-8">Loading songs...</p>
+                  ) : savedSongs.length === 0 ? (
+                    <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/10">
+                      <p className="text-white/50 mb-2">Your music list is empty.</p>
+                      <p className="text-sm text-white/30">Click the heart icon on any song to save it here!</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {savedSongs.map((song) => (
+                        <div key={song.videoId} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group">
+                          <img src={song.thumbnail} alt={song.title} className="w-16 h-12 object-cover rounded-md" />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-medium truncate">{song.title}</h4>
+                            <p className="text-xs text-white/40">Added {new Date(song.addedAt).toLocaleDateString()}</p>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const userId = localStorage.getItem('synctunes_userId');
+                                await fetch('/api/user/saved-songs', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'x-user-id': userId! },
+                                  body: JSON.stringify({ videoId: song.videoId, action: 'remove' })
+                                });
+                                setSavedSongs(savedSongs.filter(s => s.videoId !== song.videoId));
+                              } catch (e) {}
+                            }}
+                            className="p-2 text-white/30 hover:text-rose-500 transition-colors"
+                            title="Remove from list"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
                         </div>
                       ))}
                     </div>

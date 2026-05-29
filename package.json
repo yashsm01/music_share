@@ -6,7 +6,7 @@
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "cross-env NODE_ENV=production tsx server.ts",
-    "tunnel": "cloudflared tunnel --url http://localhost:4200",
+    "tunnel": "cloudflared tunnel run --url http://localhost:4200 synctunes",
     "lint": "eslint"
   },
   "dependencies": {

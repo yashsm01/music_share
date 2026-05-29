@@ -440,7 +440,7 @@ export function useRoom() {
         roomId: state.room._id,
         userId: state.userId,
         userName: 'System',
-        userAvatar: '',
+        userAvatar: 'system',
         message: `__MODE_SYNC__:${mode}`,
       });
       // Optimistic update

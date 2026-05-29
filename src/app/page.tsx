@@ -25,6 +25,7 @@ export default function HomePage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [myRooms, setMyRooms] = useState<any[]>([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [roomHistory, setRoomHistory] = useState<{ code: string; joinedAt: string }[]>([]);
 
   // Load saved data and auth token
   useEffect(() => {
@@ -53,6 +54,12 @@ export default function HomePage() {
       .catch(() => {})
       .finally(() => setIsLoadingRooms(false));
     }
+
+    // Load room history from localStorage
+    try {
+      const raw = localStorage.getItem('synctunes_room_history');
+      if (raw) setRoomHistory(JSON.parse(raw));
+    } catch { /* swallow */ }
   }, []);
 
   const handleCreateRoom = (name: string, userId?: string) => {
@@ -122,49 +129,49 @@ export default function HomePage() {
       <Navbar />
 
       {/* Hero Section */}
-      <main className="pt-16">
+      <main className="pt-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Hero */}
-          <section className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] text-center py-20">
+          <section className="flex flex-col items-center justify-center min-h-[calc(100vh-3.5rem)] text-center py-16 sm:py-20">
             {/* Animated music bars */}
             <div className="flex items-end gap-1.5 mb-8">
-              <div className="w-1.5 rounded-full bg-gradient-to-t from-violet-500 to-violet-400 animate-music-bar-1" style={{ height: '20px' }} />
-              <div className="w-1.5 rounded-full bg-gradient-to-t from-violet-400 to-pink-400 animate-music-bar-2" style={{ height: '16px' }} />
-              <div className="w-1.5 rounded-full bg-gradient-to-t from-pink-400 to-pink-500 animate-music-bar-3" style={{ height: '24px' }} />
-              <div className="w-1.5 rounded-full bg-gradient-to-t from-pink-500 to-violet-500 animate-music-bar-1" style={{ height: '12px', animationDelay: '0.3s' }} />
-              <div className="w-1.5 rounded-full bg-gradient-to-t from-violet-500 to-pink-400 animate-music-bar-2" style={{ height: '20px', animationDelay: '0.2s' }} />
+              <div className="w-1.5 rounded-full bg-gradient-to-t from-cyan-500 to-cyan-400 animate-music-bar-1" style={{ height: '20px' }} />
+              <div className="w-1.5 rounded-full bg-gradient-to-t from-cyan-400 to-violet-400 animate-music-bar-2" style={{ height: '16px' }} />
+              <div className="w-1.5 rounded-full bg-gradient-to-t from-violet-400 to-violet-500 animate-music-bar-3" style={{ height: '24px' }} />
+              <div className="w-1.5 rounded-full bg-gradient-to-t from-violet-500 to-cyan-500 animate-music-bar-1" style={{ height: '12px', animationDelay: '0.3s' }} />
+              <div className="w-1.5 rounded-full bg-gradient-to-t from-cyan-500 to-violet-400 animate-music-bar-2" style={{ height: '20px', animationDelay: '0.2s' }} />
             </div>
 
             {/* Title */}
-            <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight animate-slide-up">
-              <span className="bg-gradient-to-r from-violet-400 via-pink-400 to-violet-400 bg-clip-text text-transparent animate-gradient">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tight animate-slide-up">
+              <span className="bg-gradient-to-r from-cyan-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent animate-gradient">
                 Listen Together
               </span>
               <br />
-              <span className="text-white/90 text-4xl sm:text-5xl md:text-6xl">
+              <span className="text-white/90 text-3xl sm:text-4xl md:text-6xl font-bold">
                 In Perfect Sync
               </span>
             </h1>
 
             {/* Subtitle */}
-            <p className="mt-6 text-lg sm:text-xl text-white/50 max-w-2xl animate-slide-up" style={{ animationDelay: '0.1s' }}>
-              Create a room, share the code, and enjoy YouTube music with friends — 
+            <p className="mt-5 text-base sm:text-lg text-white/40 max-w-xl animate-slide-up" style={{ animationDelay: '0.1s' }}>
+              Create a room, share the code, and enjoy YouTube music with friends —
               synchronized playback, shared queue, and live chat.
             </p>
 
             {/* Action buttons */}
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 w-full sm:w-auto animate-slide-up" style={{ animationDelay: '0.2s' }}>
               {!isLoggedIn ? (
                 <>
                   <button
                     onClick={() => openAuth('register')}
-                    className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-semibold text-lg shadow-2xl shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="group relative px-7 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 text-white font-semibold text-base shadow-2xl shadow-cyan-500/20 hover:shadow-cyan-500/35 transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
                     <span className="relative z-10">Create Account</span>
                   </button>
                   <button
                     onClick={() => openAuth('guest')}
-                    className="px-8 py-4 rounded-2xl border border-white/20 bg-white/5 text-white font-semibold text-lg hover:bg-white/10 hover:border-white/30 transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
+                    className="px-7 py-3.5 rounded-xl border border-white/15 bg-white/[0.04] text-white font-semibold text-base hover:bg-white/[0.08] hover:border-white/25 transition-all hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
                   >
                     Continue as Guest
                   </button>
@@ -174,7 +181,7 @@ export default function HomePage() {
                   <div className="flex gap-4">
                     <button
                       onClick={() => handleCreateRoom(userName, localStorage.getItem('synctunes_userId') || undefined)}
-                      className="group relative px-8 py-4 rounded-2xl bg-gradient-to-r from-violet-500 to-pink-500 text-white font-semibold text-lg shadow-2xl shadow-violet-500/25 hover:shadow-violet-500/40 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                      className="group relative px-7 py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-500 text-white font-semibold text-base shadow-2xl shadow-cyan-500/20 hover:shadow-cyan-500/35 transition-all hover:scale-[1.02] active:scale-[0.98]"
                     >
                       <span className="relative z-10 flex items-center gap-3">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -191,13 +198,13 @@ export default function HomePage() {
                         onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                         placeholder="ROOM CODE"
                         maxLength={6}
-                        className="px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 uppercase tracking-widest w-36 text-center font-mono"
+                        className="px-4 py-3.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/25 focus:outline-none focus:border-cyan-500/40 uppercase tracking-widest w-32 text-center font-mono"
                       />
                       <button
                         onClick={() => {
                           if (joinCode) handleJoinRoom(joinCode, userName, localStorage.getItem('synctunes_userId') || undefined);
                         }}
-                        className="px-6 py-4 rounded-xl border border-white/20 bg-white/5 text-white font-semibold hover:bg-white/10 transition-all"
+                        className="px-5 py-3.5 rounded-xl border border-white/15 bg-white/[0.04] text-white font-semibold hover:bg-white/[0.08] transition-all"
                       >
                         Join
                       </button>
@@ -207,8 +214,34 @@ export default function HomePage() {
               )}
             </div>
 
+            {/* Room History */}
+            {roomHistory.length > 0 && (
+              <div className="mt-10 w-full max-w-md animate-slide-up" style={{ animationDelay: '0.25s' }}>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-3 flex items-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Recent Rooms
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {roomHistory.slice(0, 5).map((h) => (
+                    <button
+                      key={h.code}
+                      onClick={() => handleJoinRoom(h.code, userName, localStorage.getItem('synctunes_userId') || undefined)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-cyan-500/30 transition-all group"
+                    >
+                      <span className="font-mono text-sm font-bold text-cyan-400/80 tracking-widest">{h.code}</span>
+                      <svg className="w-3 h-3 text-white/20 group-hover:text-cyan-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Dashboard / Feature Cards */}
-            <div className="mt-24 w-full max-w-4xl animate-slide-up" style={{ animationDelay: '0.3s' }}>
+            <div className="mt-16 w-full max-w-4xl animate-slide-up" style={{ animationDelay: '0.3s' }}>
               {isLoggedIn ? (
                 <div className="glass p-8 rounded-3xl text-left">
                   <div className="flex justify-between items-center mb-6">
@@ -298,7 +331,7 @@ export default function HomePage() {
                   key={feature.title}
                   className="group p-6 rounded-2xl glass hover:bg-white/10 transition-all hover:scale-[1.02] cursor-default"
                 >
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-pink-500/20 flex items-center justify-center text-violet-400 mb-4 group-hover:from-violet-500/30 group-hover:to-pink-500/30 transition-colors">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500/15 to-violet-500/15 flex items-center justify-center text-cyan-400 mb-4 group-hover:from-cyan-500/25 group-hover:to-violet-500/25 transition-colors">
                     {feature.icon}
                   </div>
                   <p className="text-sm text-white/50">{feature.desc}</p>

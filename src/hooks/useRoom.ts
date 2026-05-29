@@ -29,6 +29,7 @@ interface RoomState {
   isHost: boolean;
   isLoading: boolean;
   error: string | null;
+  playbackMode: 'audio' | 'video';
 }
 
 interface SyncEvent {
@@ -50,6 +51,7 @@ export function useRoom() {
     isHost: false,
     isLoading: false,
     error: null,
+    playbackMode: 'audio',
   });
 
   const [syncEvent, setSyncEvent] = useState<SyncEvent | null>(null);
@@ -165,6 +167,16 @@ export function useRoom() {
     cleanups.push(
       on(SOCKET_EVENTS.MESSAGE_RECEIVED, (data: unknown) => {
         const payload = data as MessageReceivedPayload;
+        
+        // Intercept mode sync messages
+        if (payload.message.type === 'user' && payload.message.message.startsWith('__MODE_SYNC__:')) {
+          const mode = payload.message.message.split(':')[1] as 'audio' | 'video';
+          if (mode === 'audio' || mode === 'video') {
+            setState((prev) => ({ ...prev, playbackMode: mode }));
+          }
+          return;
+        }
+
         setState((prev) => ({
           ...prev,
           messages: [...prev.messages, payload.message],
@@ -211,16 +223,17 @@ export function useRoom() {
           (response: unknown) => {
             const res = response as { success: boolean; data?: RoomJoinedPayload; error?: string };
             if (res.success && res.data) {
-              setState({
-                room: res.data.room,
-                userId: res.data.userId,
-                users: res.data.room.users,
-                queue: res.data.queue,
-                messages: res.data.messages,
+              setState((prev) => ({
+                ...prev,
+                room: res.data!.room,
+                userId: res.data!.userId,
+                users: res.data!.room.users,
+                queue: res.data!.queue,
+                messages: res.data!.messages,
                 isHost: true,
                 isLoading: false,
                 error: null,
-              });
+              }));
               resolve(res.data);
             } else {
               setState((prev) => ({
@@ -257,7 +270,23 @@ export function useRoom() {
                 isHost: res.data.room.hostId === res.data.userId || (res.data.room.coHostIds || []).includes(res.data.userId || ''),
                 isLoading: false,
                 error: null,
+                playbackMode: 'audio',
               });
+
+              // Save to room history
+              try {
+                const historyKey = 'synctunes_room_history';
+                const raw = localStorage.getItem(historyKey);
+                const history: { code: string; joinedAt: string }[] = raw ? JSON.parse(raw) : [];
+                // Remove duplicate
+                const filtered = history.filter((h) => h.code !== res.data!.room.roomCode);
+                // Add at the front
+                filtered.unshift({ code: res.data.room.roomCode, joinedAt: new Date().toISOString() });
+                // Keep last 10
+                localStorage.setItem(historyKey, JSON.stringify(filtered.slice(0, 10)));
+                localStorage.setItem('synctunes_lastRoom', res.data.room.roomCode);
+              } catch { /* swallow */ }
+
               resolve(res.data);
             } else {
               setState((prev) => ({
@@ -280,16 +309,16 @@ export function useRoom() {
         roomId: state.room._id,
         userId: state.userId,
       });
-      setState({
-        room: null,
-        userId: null,
-        users: [],
-        queue: [],
-        messages: [],
-        isHost: false,
-        isLoading: false,
-        error: null,
-      });
+      setState((prev) => ({
+      ...prev,
+      room: null,
+      userId: null,
+      users: [],
+      queue: [],
+      messages: [],
+      isHost: false,
+    }));
+    setSyncEvent(null);
     }
   }, [emit, state.room, state.userId]);
 
@@ -403,6 +432,23 @@ export function useRoom() {
     [emit, state.room, state.isHost]
   );
 
+  const changePlaybackMode = useCallback(
+    (mode: 'audio' | 'video') => {
+      if (!state.room || !state.userId) return;
+      // Send a hidden message to sync mode
+      emit(SOCKET_EVENTS.SEND_MESSAGE, {
+        roomId: state.room._id,
+        userId: state.userId,
+        userName: 'System',
+        userAvatar: '',
+        message: `__MODE_SYNC__:${mode}`,
+      });
+      // Optimistic update
+      setState((prev) => ({ ...prev, playbackMode: mode }));
+    },
+    [emit, state.room, state.userId]
+  );
+
   return {
     ...state,
     syncEvent,
@@ -417,6 +463,7 @@ export function useRoom() {
     removeFromQueue,
     sendMessage,
     grantAdmin,
+    changePlaybackMode,
     clearSyncEvent,
   };
 }

@@ -1,200 +1,212 @@
 @import "tailwindcss";
 
 /* ============================================
-   SyncTunes — Global Styles
+   SyncTunes — Global Styles v2
+   Premium dark theme with teal/cyan accents
    ============================================ */
 
 @theme {
-  --color-surface: #1A1A2E;
-  --color-surface-hover: #25253D;
-  --color-background: #0F0F1A;
+  --color-surface: #111827;
+  --color-surface-hover: #1F2937;
+  --color-background: #030712;
+  --color-accent: #06b6d4;
+  --color-accent-2: #8b5cf6;
+}
+
+/* Safe area for modern phones (notch / home bar) */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
 }
 
 /* Custom scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(139, 92, 246, 0.3);
-  border-radius: 2px;
+  background: rgba(6, 182, 212, 0.25);
+  border-radius: 99px;
 }
-
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(139, 92, 246, 0.5);
+  background: rgba(6, 182, 212, 0.45);
 }
 
-/* Animations */
+/* ── Animations ── */
+
 @keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes equalizer {
-  0%, 100% {
-    height: 4px;
-  }
-  50% {
-    height: 20px;
-  }
+  0%, 100% { height: 4px; }
+  50%      { height: 22px; }
 }
 
 @keyframes float {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 40px rgba(139, 92, 246, 0.4), 0 0 60px rgba(236, 72, 153, 0.2);
-  }
+  0%, 100% { box-shadow: 0 0 16px rgba(6, 182, 212, 0.15); }
+  50%      { box-shadow: 0 0 32px rgba(6, 182, 212, 0.35), 0 0 64px rgba(139, 92, 246, 0.15); }
 }
 
 @keyframes gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 @keyframes music-bar-1 {
   0%, 100% { height: 4px; }
-  25% { height: 24px; }
-  50% { height: 12px; }
-  75% { height: 20px; }
+  25%      { height: 24px; }
+  50%      { height: 12px; }
+  75%      { height: 20px; }
 }
 
 @keyframes music-bar-2 {
   0%, 100% { height: 12px; }
-  25% { height: 4px; }
-  50% { height: 20px; }
-  75% { height: 8px; }
+  25%      { height: 4px; }
+  50%      { height: 20px; }
+  75%      { height: 8px; }
 }
 
 @keyframes music-bar-3 {
   0%, 100% { height: 8px; }
-  25% { height: 16px; }
-  50% { height: 4px; }
-  75% { height: 24px; }
+  25%      { height: 16px; }
+  50%      { height: 4px; }
+  75%      { height: 24px; }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
 
-.animate-slide-in-right {
-  animation: slide-in-right 0.3s ease-out;
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-.animate-slide-up {
-  animation: slide-up 0.5s ease-out;
+.animate-fade-in        { animation: fade-in 0.3s ease-out; will-change: opacity; }
+.animate-slide-in-right { animation: slide-in-right 0.3s ease-out; will-change: opacity, transform; }
+.animate-slide-up       { animation: slide-up 0.4s ease-out both; will-change: opacity, transform; }
+.animate-equalizer      { animation: equalizer 1.2s ease-in-out infinite; }
+.animate-float          { animation: float 3s ease-in-out infinite; }
+.animate-pulse-glow     { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-gradient       { background-size: 200% 200%; animation: gradient-shift 6s ease infinite; }
+.animate-music-bar-1    { animation: music-bar-1 1.2s ease-in-out infinite; }
+.animate-music-bar-2    { animation: music-bar-2 1.4s ease-in-out infinite; }
+.animate-music-bar-3    { animation: music-bar-3 1s ease-in-out infinite; }
+.animate-vinyl          { animation: vinyl-spin 4s linear infinite; }
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }
 
-.animate-equalizer {
-  animation: equalizer 1.2s ease-in-out infinite;
-}
+/* ── Glass surfaces ── */
 
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.animate-pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradient-shift 6s ease infinite;
-}
-
-.animate-music-bar-1 {
-  animation: music-bar-1 1.2s ease-in-out infinite;
-}
-
-.animate-music-bar-2 {
-  animation: music-bar-2 1.4s ease-in-out infinite;
-}
-
-.animate-music-bar-3 {
-  animation: music-bar-3 1s ease-in-out infinite;
-}
-
-/* Glassmorphism */
 .glass {
-  background: rgba(26, 26, 46, 0.6);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(17, 24, 39, 0.55);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .glass-strong {
-  background: rgba(26, 26, 46, 0.8);
-  backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Glow effects */
+/* ── Glow effects ── */
+
+.glow-cyan {
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.25);
+}
+
 .glow-violet {
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 24px rgba(139, 92, 246, 0.25);
 }
 
 .glow-pink {
-  box-shadow: 0 0 30px rgba(236, 72, 153, 0.3);
+  box-shadow: 0 0 24px rgba(236, 72, 153, 0.25);
 }
 
-/* Global body styles */
-body {
-  background: #0F0F1A;
-  color: #F8FAFC;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+/* ── Body ── */
+
+html, body {
   overflow-x: hidden;
 }
 
-/* Selection style */
+body {
+  background: #030712;
+  color: #F1F5F9;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection */
 ::selection {
-  background: rgba(139, 92, 246, 0.4);
+  background: rgba(6, 182, 212, 0.35);
   color: white;
+}
+
+/* Touch highlight removal for mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent pull-to-refresh on mobile when inside the app */
+html {
+  overscroll-behavior: none;
+}
+
+/* ── Responsive utilities ── */
+
+/* iOS viewport fix */
+@supports (-webkit-touch-callout: none) {
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* ── Player animations ── */
+
+@keyframes vinyl-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-vinyl {
+  animation: vinyl-spin 3s linear infinite;
+}
+
+@keyframes equalizer {
+  0%, 100% { height: 3px; }
+  50% { height: 14px; }
+}
+
+.animate-equalizer {
+  animation: equalizer 0.8s ease-in-out infinite;
 }

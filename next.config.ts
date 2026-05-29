@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['mongoose', 'bcryptjs'],
+  serverExternalPackages: ['mongoose', 'bcryptjs', 'youtube-dl-exec'],
 };
 
 export default nextConfig;

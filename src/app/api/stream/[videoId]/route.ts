@@ -12,7 +12,15 @@ export const dynamic = 'force-dynamic';
 function getYtDlpPath(): string {
   try {
     const mod = require('youtube-dl-exec');
-    return mod.constants?.YOUTUBE_DL_PATH || 'yt-dlp';
+    const path = mod.constants?.YOUTUBE_DL_PATH;
+    if (path && existsSync(path)) {
+      return path;
+    }
+    // Fallback to locally downloaded binary from render.yaml
+    if (existsSync(join(process.cwd(), 'yt-dlp'))) {
+      return join(process.cwd(), 'yt-dlp');
+    }
+    return 'yt-dlp';
   } catch {
     return 'yt-dlp';
   }

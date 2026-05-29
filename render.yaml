@@ -2,7 +2,7 @@ services:
   - type: web
     name: synctunes
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o yt-dlp && chmod a+rx yt-dlp && npm run build
     startCommand: npm run start
     envVars:
       - key: NODE_ENV
@@ -11,3 +11,5 @@ services:
         value: 10000
       - key: MONGODB_URI
         sync: false
+      - key: YOUTUBE_DL_SKIP_DOWNLOAD
+        value: "true"
